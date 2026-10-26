@@ -16,6 +16,25 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  image_path: "assets/app_icon.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/app_icon.png"
+  web:
+    generate: true
+    image_path: "assets/app_icon.png"
+    background_color: "#F0FBED"
+    theme_color: "#2FA36B"
+  # Android 8+ adaptive icon: solid mint backdrop, full-bleed logo layer;
+  # the launcher mask crops the source's own rounded corners away.
+  adaptive_icon_background: "#DEF8E9"
+  adaptive_icon_foreground: "assets/app_icon.png"
 
 flutter:
   uses-material-design: true
