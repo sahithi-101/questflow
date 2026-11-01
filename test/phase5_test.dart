@@ -175,24 +175,45 @@ void main() {
       expect(state.timeLogById('x1'), isNull);
     });
 
-    test('time logs are never removed by the retention sweep', () async {
-      final old = log(
-        'l-old',
-        'Long ago',
-        at(-30, 8),
-        at(-30, 9),
-      );
-      final state = AppState(
-        now: _now,
-        repos: RepositoryBundle(
-          tasks: MemoryTaskRepository([]),
-          events: MemoryEventRepository([]),
-          quests: MemoryQuestRepository([]),
-          timeLogs: MemoryTimeLogRepository([old]),
-        ),
-      );
+    test('time logs go 30 days after their day, timestamps aside', () async {
+      final state = AppState.demo(now: _now);
       await state.load();
-      expect(state.timeLogById('l-old'), isNotNull);
+
+      // Ended 31 days ago: past the buffer, removed.
+      final old = log('l-old', 'Old session', at(-31, 8), at(-31, 9, 30));
+      // Ended on the 30th-days-ago day at 23:59: kept — the time of day
+      // never matters, only the calendar day.
+      final edge = log('l-edge', 'Edge session', at(-30, 23), at(-30, 23, 59));
+      // Ended 29 days ago: inside the buffer.
+      final recent = log('l-recent', 'Recent session', at(-29, 8), at(-29, 9));
+      await state.addTimeLog(old);
+      await state.addTimeLog(edge);
+      await state.addTimeLog(recent);
+
+      await state.purgeExpired(at: _now);
+
+      expect(state.timeLogById('l-old'), isNull);
+      expect(state.timeLogById('l-edge'), isNotNull);
+      expect(state.timeLogById('l-recent'), isNotNull);
+    });
+
+    test('a log is judged by the day it ended, not when it started',
+        () async {
+      final state = AppState.demo(now: _now);
+      await state.load();
+      // Started 32 days ago but ended 31 days ago at one minute past
+      // midnight: its day is 31 days ago, so it goes.
+      final spansMidnight = log(
+        'l-span',
+        'Overnight session',
+        at(-32, 23, 30),
+        at(-31, 0, 1),
+      );
+      await state.addTimeLog(spansMidnight);
+
+      await state.purgeExpired(at: _now);
+
+      expect(state.timeLogById('l-span'), isNull);
     });
   });
 

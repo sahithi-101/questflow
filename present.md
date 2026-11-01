@@ -69,7 +69,7 @@ The app has exactly **three primary destinations** — Home, Tasks & Events, and
 - The saved **time log** records its name, start time, end time, and duration; paused time is excluded (ending while paused closes the log at the pause moment).
 - Logs appear in a **"Today's logs" list with a daily total** on the Timer page.
 - Each log also appears on the **Tasks & Events calendar agenda** under the day it started, showing name, start–end time, and duration, with delete-with-confirmation.
-- Time logs are permanent work records — excluded from the one-week retention sweep.
+- Time logs are kept for **30 days** from their calendar day, then removed by the retention sweep — the exact times on that day never matter.
 - Stored in a dedicated `time_logs` table with the same Row Level Security as everything else.
 
 ### 3.5 Authentication & cloud
@@ -87,6 +87,7 @@ Finished items are kept for a **one-week buffer**, then automatically removed fr
 - Completed tasks — removed 1 week after `completed_at`.
 - Events — removed 1 week after they end.
 - Quests — removed 1 week after their end date (daily records go with them).
+- Time logs — removed 30 days after their calendar day.
 
 Pending tasks, active quests and time logs are never touched.
 

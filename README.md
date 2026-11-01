@@ -60,8 +60,9 @@ A fourth page with a stopwatch: **Start**, **Pause/Resume**, and
 with its name, start and end time, and duration. Paused time is excluded —
 ending while paused closes the log at the pause moment. Logs show on the
 Timer page for today (with a daily total) and on the Tasks & Events agenda
-under the day they started. Time logs are permanent records: the retention
-sweep never removes them.
+under the day they started. Logs are kept for 30 days from their calendar
+day and then removed by the retention sweep, regardless of the times on
+that day.
 
 Cloud mode stores them in the `time_logs` table — run
 `supabase/migration_002_time_logs.sql` in the Supabase SQL editor before
@@ -126,3 +127,5 @@ a sweep that runs on every load and hourly afterwards:
 - events, one week after they end (or start, when no end time)
 - quests, one week after their `ends_on` date — daily records go with them,
   so the heatmap history of an ended quest is intentionally not preserved
+- time logs, 30 days after their calendar day — the exact start/end times
+  on that day never matter, only the day the session ended

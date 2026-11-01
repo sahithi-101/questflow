@@ -71,6 +71,9 @@ class AppState extends ChangeNotifier {
   /// How long finished items stay before the sweep removes them.
   static const Duration retentionPeriod = Duration(days: 7);
 
+  /// Time logs keep 30 days from their calendar day, timestamps aside.
+  static const Duration logRetentionPeriod = Duration(days: 30);
+
   Timer? _purgeTimer;
 
   /// Demo mode shows sample data; cloud mode shows the signed-in user's.
@@ -114,10 +117,11 @@ class AppState extends ChangeNotifier {
   ///  - completed tasks: one week after [Task.completedAt]
   ///  - events: one week after they end (or start, when no end time)
   ///  - quests: one week after [Quest.endsOn]; its daily records go too
+  ///  - time logs: 30 days after their calendar day, irrespective of the
+  ///    exact start/end times on that day
   ///
   /// Pending tasks and active quests are never touched, and a failure on
-  /// one item does not stop the rest. Time logs are permanent work records
-  /// and are deliberately excluded from the sweep.
+  /// one item does not stop the rest.
   Future<void> purgeExpired({DateTime? at}) async {
     if (status != LoadStatus.ready) return;
     final ref = at ?? clock();
@@ -179,7 +183,30 @@ class AppState extends ChangeNotifier {
       ];
     }
 
-    if (taskIds.isNotEmpty || eventIds.isNotEmpty || questIds.isNotEmpty) {
+    // Time logs 30 days past their calendar day. The day the session ended
+    // decides; the hour/minute on that day never matters.
+    final logCutoff = dateOnly(ref).subtract(logRetentionPeriod);
+    final logIds = [
+      for (final l in _timeLogs)
+        if (dateOnly(l.endedAt).isBefore(logCutoff)) l.id,
+    ];
+    for (final id in logIds) {
+      try {
+        await repos.timeLogs.delete(id);
+      } catch (_) {
+        continue;
+      }
+    }
+    if (logIds.isNotEmpty) {
+      _timeLogs = [
+        for (final l in _timeLogs) if (!logIds.contains(l.id)) l,
+      ];
+    }
+
+    if (taskIds.isNotEmpty ||
+        eventIds.isNotEmpty ||
+        questIds.isNotEmpty ||
+        logIds.isNotEmpty) {
       notifyListeners();
     }
   }
