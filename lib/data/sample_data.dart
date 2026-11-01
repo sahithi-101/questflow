@@ -1,17 +1,19 @@
 import '../models/event.dart';
 import '../models/quest.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 import '../util/dates.dart';
 
 /// Phase 2 seeds the in-memory repositories with this. Phase 4 swaps the
 /// payload for Supabase-backed repositories without touching the screens.
 class SampleData {
-  SampleData._(this.now, this.tasks, this.events, this.quests);
+  SampleData._(this.now, this.tasks, this.events, this.quests, this.timeLogs);
 
   final DateTime now;
   final List<Task> tasks;
   final List<Event> events;
   final List<Quest> quests;
+  final List<TimeLog> timeLogs;
 
   factory SampleData.build(DateTime now) {
     final today = dateOnly(now);
@@ -105,7 +107,22 @@ class SampleData {
       _binary('q4', 'Lights out by 11 pm', today, seed: 4, todayDone: false),
     ];
 
-    return SampleData._(now, tasks, events, quests);
+    final timeLogs = <TimeLog>[
+      TimeLog(
+        id: 'l1',
+        title: 'Morning study session',
+        startedAt: at(0, 7, 30),
+        endedAt: at(0, 9),
+      ),
+      TimeLog(
+        id: 'l2',
+        title: 'Library reading',
+        startedAt: at(-1, 18),
+        endedAt: at(-1, 19, 15),
+      ),
+    ];
+
+    return SampleData._(now, tasks, events, quests, timeLogs);
   }
 
   // Deterministic history: roughly 20% missed, 10% partial, 50% on target,

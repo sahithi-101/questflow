@@ -51,6 +51,21 @@ Without those defines the app stays in demo mode.
 - `test/phase2_test.dart` — forms, detail views, delete confirmation, day dialog
 - `test/phase3_test.dart` — quest boundary cases from spec section 4
 - `test/phase4_test.dart` — Supabase row mapping and repository-backed state
+- `test/phase5_test.dart` — focus timer session, time logs, timer screen flows
+
+## Focus timer (phase 5 addition)
+
+A fourth page with a stopwatch: **Start**, **Pause/Resume**, and
+**End & log**. Ending asks what the session was for, then saves a time log
+with its name, start and end time, and duration. Paused time is excluded —
+ending while paused closes the log at the pause moment. Logs show on the
+Timer page for today (with a daily total) and on the Tasks & Events agenda
+under the day they started. Time logs are permanent records: the retention
+sweep never removes them.
+
+Cloud mode stores them in the `time_logs` table — run
+`supabase/migration_002_time_logs.sql` in the Supabase SQL editor before
+using the timer in cloud mode.
 
 ## Deploy to GitHub Pages
 

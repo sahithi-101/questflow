@@ -188,6 +188,7 @@ void main() {
         tasks: MemoryTaskRepository([]),
         events: MemoryEventRepository([]),
         quests: MemoryQuestRepository([]),
+        timeLogs: MemoryTimeLogRepository([]),
       );
       await bundle.tasks.create(Task(
           id: 'x', title: 'x', deadline: DateTime(2026, 11, 1)));
@@ -291,6 +292,7 @@ void main() {
           tasks: MemoryTaskRepository([oldTask]),
           events: MemoryEventRepository([]),
           quests: MemoryQuestRepository([]),
+          timeLogs: MemoryTimeLogRepository([]),
         ),
       );
       await state.load();

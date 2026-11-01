@@ -8,6 +8,7 @@ import '../data/sample_data.dart';
 import '../models/event.dart';
 import '../models/quest.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 import '../util/dates.dart';
 
 enum LoadStatus { loading, ready, error }
@@ -19,7 +20,9 @@ class AppState extends ChangeNotifier {
     DateTime? now,
     required this.repos,
     this.isDemo = false,
-  }) : now = now ?? DateTime.now() {
+    DateTime Function()? clock,
+  })  : now = now ?? DateTime.now(),
+        clock = clock ?? DateTime.now {
     status = LoadStatus.loading;
     // Re-check retention periodically during long sessions.
     _purgeTimer = Timer.periodic(const Duration(hours: 1), (_) {
@@ -28,16 +31,18 @@ class AppState extends ChangeNotifier {
   }
 
   /// Demo mode: in-memory repositories pre-seeded with sample data.
-  factory AppState.demo({DateTime? now}) {
+  factory AppState.demo({DateTime? now, DateTime Function()? clock}) {
     final at = now ?? DateTime.now();
     final sample = SampleData.build(at);
     return AppState(
       now: at,
       isDemo: true,
+      clock: clock,
       repos: RepositoryBundle(
         tasks: MemoryTaskRepository(sample.tasks),
         events: MemoryEventRepository(sample.events),
         quests: MemoryQuestRepository(sample.quests),
+        timeLogs: MemoryTimeLogRepository(sample.timeLogs),
       ),
     );
   }
@@ -45,13 +50,19 @@ class AppState extends ChangeNotifier {
   final DateTime now;
   final RepositoryBundle repos;
 
+  /// Real-time source for the stopwatch (and the hourly retention sweep).
+  /// Injectable so tests can drive the timer deterministically.
+  final DateTime Function() clock;
+
   List<Task> _tasks = const [];
   List<Event> _events = const [];
   List<Quest> _quests = const [];
+  List<TimeLog> _timeLogs = const [];
 
   List<Task> get tasks => List.unmodifiable(_tasks);
   List<Event> get events => List.unmodifiable(_events);
   List<Quest> get quests => List.unmodifiable(_quests);
+  List<TimeLog> get timeLogs => List.unmodifiable(_timeLogs);
 
   /// Cloud mode uses this while fetching; demo mode is ready immediately.
   LoadStatus status = LoadStatus.loading;
@@ -80,9 +91,11 @@ class AppState extends ChangeNotifier {
       final tasks = List.of(await repos.tasks.list());
       final events = List.of(await repos.events.list());
       final quests = List.of(await repos.quests.list());
+      final logs = List.of(await repos.timeLogs.list());
       _tasks = tasks;
       _events = events;
       _quests = quests;
+      _timeLogs = logs;
       status = LoadStatus.ready;
       await purgeExpired(at: now);
     } catch (e) {
@@ -103,10 +116,11 @@ class AppState extends ChangeNotifier {
   ///  - quests: one week after [Quest.endsOn]; its daily records go too
   ///
   /// Pending tasks and active quests are never touched, and a failure on
-  /// one item does not stop the rest.
+  /// one item does not stop the rest. Time logs are permanent work records
+  /// and are deliberately excluded from the sweep.
   Future<void> purgeExpired({DateTime? at}) async {
     if (status != LoadStatus.ready) return;
-    final ref = at ?? DateTime.now();
+    final ref = at ?? clock();
     final dtCutoff = ref.subtract(retentionPeriod);
     final dayCutoff = dateOnly(ref).subtract(const Duration(days: 7));
 
@@ -312,6 +326,107 @@ class AppState extends ChangeNotifier {
 
   static String _fmt(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : '$v';
+
+  // ---- Focus timer ----------------------------------------------------
+  //
+  // The session lives in AppState (not in the screen) so the timer keeps
+  // running while the user visits other pages. The clock ticks against
+  // DateTime.now(); the `at:` parameters exist purely for tests.
+
+  DateTime? _timerStartedAt; // first start of the current session
+  DateTime? _timerSegmentStart; // null while paused
+  Duration _timerAccumulated = Duration.zero;
+  DateTime? _timerPausedAt; // when the current pause began
+
+  /// A session has been started and not yet ended (may be paused).
+  bool get timerRunning => _timerStartedAt != null;
+
+  /// Running but currently paused.
+  bool get timerPaused => _timerStartedAt != null && _timerSegmentStart == null;
+
+  /// Time accumulated in the current session, pauses excluded.
+  Duration timerElapsed({DateTime? at}) {
+    final t = at ?? clock();
+    var total = _timerAccumulated;
+    final seg = _timerSegmentStart;
+    if (seg != null && !t.isBefore(seg)) total += t.difference(seg);
+    return total;
+  }
+
+  void startTimer({DateTime? at}) {
+    if (_timerStartedAt != null) return;
+    final t = at ?? clock();
+    _timerStartedAt = t;
+    _timerSegmentStart = t;
+    _timerAccumulated = Duration.zero;
+    _timerPausedAt = null;
+    notifyListeners();
+  }
+
+  void pauseTimer({DateTime? at}) {
+    final seg = _timerSegmentStart;
+    if (seg == null) return;
+    final t = at ?? clock();
+    _timerAccumulated += t.difference(seg);
+    _timerSegmentStart = null;
+    _timerPausedAt = t;
+    notifyListeners();
+  }
+
+  void resumeTimer({DateTime? at}) {
+    if (_timerStartedAt == null || _timerSegmentStart != null) return;
+    _timerSegmentStart = at ?? clock();
+    _timerPausedAt = null;
+    notifyListeners();
+  }
+
+  /// Ends the session and saves it as a named log. Paused time is excluded
+  /// from the log: when the session is paused, the log ends at the moment
+  /// pause was pressed. Returns a user-facing error message on failure and
+  /// keeps the session running so nothing is lost.
+  Future<String?> endTimer(String title, {DateTime? at}) async {
+    if (_timerStartedAt == null) return 'No timer is running.';
+    final t = at ?? clock();
+    final endedAt = _timerSegmentStart != null ? t : (_timerPausedAt ?? t);
+    final started = _timerStartedAt!;
+    try {
+      final saved = await repos.timeLogs.create(TimeLog(
+        id: 'log-${t.microsecondsSinceEpoch}',
+        title: title.trim(),
+        startedAt: started,
+        endedAt: endedAt,
+        createdAt: t,
+        updatedAt: t,
+      ));
+      _timeLogs = [..._timeLogs, saved];
+      _timerStartedAt = null;
+      _timerSegmentStart = null;
+      _timerAccumulated = Duration.zero;
+      _timerPausedAt = null;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      errorMessage = 'Could not save that log. ${_describe(e)}';
+      notifyListeners();
+      return 'Could not save that log. ${_describe(e)}';
+    }
+  }
+
+  // ---- Time logs ------------------------------------------------------
+
+  TimeLog? timeLogById(String id) => _timeLogs
+      .cast<TimeLog?>()
+      .firstWhere((l) => l!.id == id, orElse: () => null);
+
+  Future<bool> addTimeLog(TimeLog log) => _guard(() async {
+        final saved = await repos.timeLogs.create(log);
+        _timeLogs = [..._timeLogs, saved];
+      });
+
+  Future<bool> deleteTimeLog(String id) => _guard(() async {
+        await repos.timeLogs.delete(id);
+        _timeLogs = [for (final l in _timeLogs) if (l.id != id) l];
+      });
 
   // ---- plumbing -------------------------------------------------------
 

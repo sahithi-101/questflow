@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../models/event.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 import '../state/app_scope.dart';
 import '../theme/app_theme.dart';
 import '../theme/palette.dart';
@@ -10,6 +11,7 @@ import '../util/dates.dart';
 import '../widgets/add_chooser.dart';
 import '../widgets/detail/event_detail.dart';
 import '../widgets/detail/task_detail.dart';
+import '../widgets/forms/confirm_delete.dart';
 import '../widgets/forms/event_form.dart';
 import '../widgets/forms/task_form.dart';
 import '../widgets/status_view.dart';
@@ -134,6 +136,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       now: data.now,
       tasks: tasks.where((t) => sameDay(t.deadline, _selected)).toList(),
       events: events.where((e) => sameDay(e.start, _selected)).toList(),
+      logs: widget.filter == null
+          ? data.timeLogs.where((l) => sameDay(l.startedAt, _selected)).toList()
+          : const [],
     );
 
     return Scaffold(
@@ -431,16 +436,18 @@ class _Agenda extends StatelessWidget {
     required this.now,
     required this.tasks,
     required this.events,
+    required this.logs,
   });
 
   final DateTime date;
   final DateTime now;
   final List<Task> tasks;
   final List<Event> events;
+  final List<TimeLog> logs;
 
   @override
   Widget build(BuildContext context) {
-    // One chronological list: tasks by deadline, events by start.
+    // One chronological list: tasks by deadline, events and logs by start.
     final rows = <({DateTime at, Widget row})>[
       for (final t in tasks)
         (
@@ -457,6 +464,19 @@ class _Agenda extends StatelessWidget {
           row: _EventRow(
             event: e,
             onTap: () => showEventDetail(context, e),
+          ),
+        ),
+      for (final l in logs)
+        (
+          at: l.startedAt,
+          row: _TimeLogRow(
+            log: l,
+            onDelete: () => showConfirmDelete(
+              context,
+              kind: 'log',
+              title: l.title,
+              onDelete: () => AppScope.of(context).deleteTimeLog(l.id),
+            ),
           ),
         ),
     ]..sort((a, b) => a.at.compareTo(b.at));
@@ -617,6 +637,26 @@ class _EventRow extends StatelessWidget {
       title: event.title,
       subtitle: event.location == null ? time : '$time, ${event.location}',
       onTap: onTap,
+    );
+  }
+}
+
+/// A saved focus-timer session: name, start–end time and duration. Tapping
+/// it offers to delete the log (there is nothing else to edit).
+class _TimeLogRow extends StatelessWidget {
+  const _TimeLogRow({required this.log, required this.onDelete});
+  final TimeLog log;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final time = '${clock(log.startedAt)} – ${clock(log.endedAt)}';
+    return _AgendaRow(
+      color: QfColors.gamboge,
+      icon: Icons.timer,
+      title: log.title,
+      subtitle: '$time · ${formatDuration(log.duration)}',
+      onTap: onDelete,
     );
   }
 }

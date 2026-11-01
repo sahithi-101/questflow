@@ -45,3 +45,20 @@ String dateRangeLabel(DateTime a, DateTime b) {
   }
   return '$s ${a.year} – $e ${b.year}';
 }
+
+/// "1h 30m", "45m" or "40s" for time-log durations.
+String formatDuration(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final s = d.inSeconds % 60;
+  if (h > 0) return m == 0 ? '${h}h' : '${h}h ${m}m';
+  if (m > 0) return '${m}m';
+  return '${s}s';
+}
+
+/// Stopwatch face: "1:05:09" over an hour, otherwise "05:09".
+String formatClock(Duration d) {
+  final h = d.inHours;
+  String two(int n) => n.toString().padLeft(2, '0');
+  return h > 0 ? '$h:${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}' : '${two(d.inMinutes % 60)}:${two(d.inSeconds % 60)}';
+}

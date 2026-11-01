@@ -1,6 +1,7 @@
 import '../models/event.dart';
 import '../models/quest.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 import '../util/dates.dart';
 import 'repositories.dart';
 
@@ -81,11 +82,32 @@ class MemoryQuestRepository implements QuestRepository {
   }
 }
 
+class MemoryTimeLogRepository implements TimeLogRepository {
+  MemoryTimeLogRepository(this._list);
+  final List<TimeLog> _list;
+
+  @override
+  Future<List<TimeLog>> list() async => List.unmodifiable(_list);
+
+  @override
+  Future<TimeLog> create(TimeLog log) async {
+    _list.add(log);
+    return log;
+  }
+
+  @override
+  Future<void> update(TimeLog log) async => _replace(_list, log);
+
+  @override
+  Future<void> delete(String id) async => _list.removeWhere((l) => l.id == id);
+}
+
 void _replace<T extends Object>(List<T> list, T item) {
   String idOf(T t) => switch (t) {
         Task() => t.id,
         Event() => t.id,
         Quest() => t.id,
+        TimeLog() => t.id,
         _ => throw StateError('unexpected type'),
       };
   final i = list.indexWhere((t) => idOf(t) == idOf(item));

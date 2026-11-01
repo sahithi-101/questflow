@@ -10,10 +10,14 @@ import 'state/app_scope.dart';
 import 'theme/app_theme.dart';
 
 class QuestFlowApp extends StatefulWidget {
-  const QuestFlowApp({super.key, this.now, this.cloud});
+  const QuestFlowApp({super.key, this.now, this.cloud, this.clock});
 
   /// Injectable clock for tests.
   final DateTime? now;
+
+  /// Injectable ticking clock for the stopwatch (tests). Defaults to the
+  /// real clock.
+  final DateTime Function()? clock;
 
   /// Force demo (false) or cloud (true) mode. Defaults to auto-detecting:
   /// cloud mode runs when Supabase keys are configured *and* the Supabase
@@ -68,6 +72,7 @@ class _QuestFlowAppState extends State<QuestFlowApp> {
         _cloudState = AppState(
           now: DateTime.now(),
           repos: supabaseBundle(Supabase.instance.client),
+          clock: widget.clock,
         );
         _userId = uid;
         _cloudState!.load();
@@ -96,7 +101,7 @@ class _QuestFlowAppState extends State<QuestFlowApp> {
   @override
   Widget build(BuildContext context) {
     if (!_cloud) {
-      _demoState ??= AppState.demo(now: widget.now)..load();
+      _demoState ??= AppState.demo(now: widget.now, clock: widget.clock)..load();
       return AppScope(
         state: _demoState!,
         child: MaterialApp.router(

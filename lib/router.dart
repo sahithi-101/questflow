@@ -7,6 +7,7 @@ import 'screens/calendar_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/quest_detail_screen.dart';
 import 'screens/quests_screen.dart';
+import 'screens/timer_screen.dart';
 import 'widgets/app_shell.dart';
 
 /// Routes:
@@ -16,6 +17,7 @@ import 'widgets/app_shell.dart';
 ///   /calendar?add=task|event  open the add flow
 ///   /quests?add=1             open the add flow
 ///   /quests/:id               quest detail with full heatmap
+///   /timer                    focus stopwatch and time logs
 ///
 /// The route table is static — auth gating happens in the builders, not in
 /// a GoRouter redirect. A redirect driven by refreshListenable races with
@@ -76,6 +78,10 @@ GoRouter buildRouter({bool cloudMode = false, AuthService? auth}) {
                 ),
               ),
             ],
+          ),
+          GoRoute(
+            path: '/timer',
+            pageBuilder: (context, state) => page(state, const TimerScreen()),
           ),
         ],
       ),

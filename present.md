@@ -61,7 +61,18 @@ The app has exactly **three primary destinations** — Home, Tasks & Events, and
 - **Archive** as a safer alternative to deletion; permanent delete requires confirmation.
 - Values above the configured **upper limit are rejected** with a validation message — never silently capped.
 
-### 3.4 Authentication & cloud
+### 3.4 Focus timer (fourth page)
+
+- A full **stopwatch page**: Start, **Pause/Resume**, and **End & log**.
+- The session keeps running while you visit other pages — it lives in the app state, not the screen.
+- Ending the timer **asks for a name** ("What did you work on?"), with a Discard option; an empty name cannot be saved.
+- The saved **time log** records its name, start time, end time, and duration; paused time is excluded (ending while paused closes the log at the pause moment).
+- Logs appear in a **"Today's logs" list with a daily total** on the Timer page.
+- Each log also appears on the **Tasks & Events calendar agenda** under the day it started, showing name, start–end time, and duration, with delete-with-confirmation.
+- Time logs are permanent work records — excluded from the one-week retention sweep.
+- Stored in a dedicated `time_logs` table with the same Row Level Security as everything else.
+
+### 3.5 Authentication & cloud
 
 - **Email + password sign-up, sign-in, sign-out**, and **password reset** email.
 - **Session restoration** — a returning visitor stays logged in (Supabase persistent session).
@@ -69,7 +80,7 @@ The app has exactly **three primary destinations** — Home, Tasks & Events, and
 - All data is stored per-user in PostgreSQL; **Row Level Security policies on every table** guarantee one account can never read or write another account's records.
 - Loading, error, and empty states for all cloud operations, with an error banner for runtime failures.
 
-### 3.5 Data retention (project addition)
+### 3.6 Data retention (project addition)
 
 Finished items are kept for a **one-week buffer**, then automatically removed from the database by a sweep that runs on every load and hourly afterwards:
 
@@ -77,17 +88,17 @@ Finished items are kept for a **one-week buffer**, then automatically removed fr
 - Events — removed 1 week after they end.
 - Quests — removed 1 week after their end date (daily records go with them).
 
-Pending tasks and active quests are never touched.
+Pending tasks, active quests and time logs are never touched.
 
 ## 4. Architecture highlights
 
-- **Repository pattern:** widgets never talk to Supabase directly. `TaskRepository`, `EventRepository`, `QuestRepository` are interfaces with two implementations each — **in-memory** (demo mode) and **Supabase** (cloud mode). The app auto-detects which to use, which also makes the whole app testable without a network.
+- **Repository pattern:** widgets never talk to Supabase directly. `TaskRepository`, `EventRepository`, `QuestRepository` and `TimeLogRepository` are interfaces with two implementations each — **in-memory** (demo mode) and **Supabase** (cloud mode). The app auto-detects which to use, which also makes the whole app testable without a network.
 - **Central state:** a single `AppState` (`ChangeNotifier`) holds tasks, events, quests, selected date, and load status; all mutations go through it, so every screen updates reactively.
 - **Real database IDs:** creating an item returns the stored database row, so subsequent updates/deletes always reference the true UUID.
-- **Database schema** (`supabase/schema.sql`): 5 tables (profiles, tasks, events, quests, quest_daily_records) with RLS policies on **every** table, `updated_at` triggers, a unique constraint on `(quest_id, record_date)`, a composite foreign key ensuring records belong to the owning user's quest, and a check constraint enforcing numeric upper limits at the database level.
+- **Database schema** (`supabase/schema.sql` + migrations): 6 tables (profiles, tasks, events, quests, quest_daily_records, time_logs) with RLS policies on **every** table, `updated_at` triggers, a unique constraint on `(quest_id, record_date)`, a composite foreign key ensuring records belong to the owning user's quest, and check constraints enforcing numeric upper limits and valid log intervals at the database level.
 - **Theme:** custom "Lichen & Madder" palette (madder red = tasks, woad blue = events, moss green = quests, mulberry = over-target, ash grey = zero) with custom fonts.
 
-## 5. Testing — 66 tests
+## 5. Testing — 80 tests
 
 | Suite | Tests | Covers |
 |---|---|---|
@@ -95,6 +106,7 @@ Pending tasks and active quests are never touched.
 | `phase2_test.dart` | 7 | Forms & validation, CRUD flows, detail dialogs, day dialog |
 | `phase3_test.dart` | 42 | Every quest-rule boundary case: binary/numeric colours, streak rules (today/yesterday/gap), completion rate, upper-limit rejection, future-day handling, month grid layout |
 | `phase4_test.dart` | 12 | Repository interfaces, memory vs Supabase row mapping, auth service, retention sweep |
+| `phase5_test.dart` | 14 | Focus timer session (pause/resume accumulation, named logs, pause-excluded durations), time-log CRUD, timer screen flows, calendar integration |
 
 Highlights of boundary coverage: partial progress never counts toward streaks; over-target days do; missing past records count as failures while future days never do; streak breaks correctly across gaps; completion rate excludes future days; retention keeps items inside the 7-day buffer and removes them after.
 

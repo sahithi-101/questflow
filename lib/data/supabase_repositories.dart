@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/event.dart';
 import '../models/quest.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 import '../util/dates.dart';
 import 'repositories.dart';
 
@@ -278,9 +279,57 @@ class SupabaseQuestRepository implements QuestRepository {
   }
 }
 
+class SupabaseTimeLogRepository implements TimeLogRepository {
+  SupabaseTimeLogRepository(this._client);
+  final SupabaseClient _client;
+
+  static TimeLog fromRow(Map<String, dynamic> r) {
+    return TimeLog(
+      id: r['id'] as String,
+      title: r['title'] as String,
+      startedAt: DateTime.parse(r['started_at'] as String).toLocal(),
+      endedAt: DateTime.parse(r['ended_at'] as String).toLocal(),
+      createdAt: _ts(r['created_at']) ?? DateTime(1970),
+      updatedAt: _ts(r['updated_at']) ?? DateTime(1970),
+    );
+  }
+
+  Map<String, dynamic> _toRow(TimeLog l) => {
+        'user_id': _client.auth.currentUser?.id,
+        'title': l.title,
+        'started_at': l.startedAt.toUtc().toIso8601String(),
+        'ended_at': l.endedAt.toUtc().toIso8601String(),
+      };
+
+  @override
+  Future<List<TimeLog>> list() async {
+    final rows =
+        await _client.from('time_logs').select().order('started_at');
+    return [for (final r in rows) fromRow(r)];
+  }
+
+  @override
+  Future<TimeLog> create(TimeLog log) async {
+    final rows =
+        await _client.from('time_logs').insert(_toRow(log)).select();
+    return fromRow(rows.first);
+  }
+
+  @override
+  Future<void> update(TimeLog log) async {
+    await _client.from('time_logs').update(_toRow(log)).eq('id', log.id);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _client.from('time_logs').delete().eq('id', id);
+  }
+}
+
 /// The bundle used in cloud mode.
 RepositoryBundle supabaseBundle(SupabaseClient client) => RepositoryBundle(
       tasks: SupabaseTaskRepository(client),
       events: SupabaseEventRepository(client),
       quests: SupabaseQuestRepository(client),
+      timeLogs: SupabaseTimeLogRepository(client),
     );

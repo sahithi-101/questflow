@@ -1,6 +1,7 @@
 import '../models/event.dart';
 import '../models/quest.dart';
 import '../models/task.dart';
+import '../models/time_log.dart';
 
 /// Data-layer interfaces. The UI and [AppState] talk to these only, so the
 /// storage backend (in-memory demo or Supabase cloud) can be swapped without
@@ -36,15 +37,26 @@ abstract class QuestRepository {
   Future<void> setRecord(String questId, DateTime date, double? value);
 }
 
+abstract class TimeLogRepository {
+  Future<List<TimeLog>> list();
+
+  /// Inserts the log and returns the stored row (with its real id).
+  Future<TimeLog> create(TimeLog log);
+  Future<void> update(TimeLog log);
+  Future<void> delete(String id);
+}
+
 /// The set of repositories the app runs against.
 class RepositoryBundle {
   const RepositoryBundle({
     required this.tasks,
     required this.events,
     required this.quests,
+    required this.timeLogs,
   });
 
   final TaskRepository tasks;
   final EventRepository events;
   final QuestRepository quests;
+  final TimeLogRepository timeLogs;
 }

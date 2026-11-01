@@ -21,6 +21,7 @@ const _destinations = [
       Icons.calendar_month),
   _Dest('Quests', '/quests', Icons.local_fire_department_outlined,
       Icons.local_fire_department),
+  _Dest('Timer', '/timer', Icons.timer_outlined, Icons.timer),
 ];
 
 /// Sidebar on wide screens, bottom bar on narrow ones. Also renders the
@@ -42,6 +43,7 @@ class AppShell extends StatelessWidget {
   int get _index {
     if (location.startsWith('/calendar')) return 1;
     if (location.startsWith('/quests')) return 2;
+    if (location.startsWith('/timer')) return 3;
     return 0;
   }
 
