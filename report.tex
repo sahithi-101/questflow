@@ -192,18 +192,17 @@ heatmap-based habit tracker. The purpose of the project is twofold:
 \toprule
 \textbf{Tool / Technology} & \textbf{Role in the project} \\
 \midrule
-Flutter 3.47 (stable) & UI toolkit; one codebase compiled for web, Android and Linux desktop \\
+Flutter 3.47 (stable) & UI toolkit; one codebase compiled for the web \\
 Dart 3 & Programming language for all application and test code \\
 go\_router (\texttt{\^{}14}) & Declarative navigation: shell route, nested routes, query parameters \\
 supabase\_flutter (\texttt{\^{}2.8}) & Cloud backend client: authentication and PostgreSQL CRUD \\
 Supabase Auth & Email/password sign-up, sign-in, password reset, persistent sessions \\
 PostgreSQL + Row Level Security & Cloud storage; per-user data isolation enforced in the database \\
 flutter\_test & Automated unit and widget testing (81 tests) \\
-flutter\_launcher\_icons & Generation of launcher icons for Android, iOS, web and macOS \\
+flutter\_launcher\_icons & Generation of the application icon and web favicon \\
 Git + GitHub & Version control and source hosting \\
 GitHub Actions + GitHub Pages & Continuous deployment: tests, release build and hosting \\
-VS Code / Android Studio & Development environment \\
-Chrome and Android device & Testing on different screen sizes and platforms \\
+VS Code / Chrome DevTools & Development environment and screen-size testing \\
 \bottomrule
 \end{tabularx}
 \caption{Tools and technologies.}
@@ -987,11 +986,8 @@ jobs:
 \begin{lstlisting}[language=, basicstyle=\ttfamily\small]
 flutter pub get
 flutter run -d chrome          # web (demo mode without Supabase keys)
-flutter run -d linux           # Linux desktop build
-flutter run -d android         # Android device over USB
 flutter test                   # 81 automated tests
 flutter build web --release    # production bundle
-flutter build apk --release    # Android installer
 \end{lstlisting}
 
 % ============================================================================
