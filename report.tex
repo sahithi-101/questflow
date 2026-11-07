@@ -2,8 +2,9 @@
 %  QuestFlow — Flutter Coursework Documentation Report
 %
 %  HOW TO USE THIS FILE
-%  1. Upload report.tex to https://www.overleaf.com (New Project → Blank,
-%     or upload this file). Compile with pdfLaTeX (default).
+%  1. Upload ONLY this file to https://www.overleaf.com (New Project →
+%     Blank Project → upload report.tex). All code snippets are inlined,
+%     so no other files are needed. Compile with pdfLaTeX (the default).
 %  2. Take the screenshots listed in Section 7 and upload them to a folder
 %     named "figures" in the same Overleaf project. The \includegraphics
 %     lines are already written — just uncomment them once the images are
@@ -341,57 +342,559 @@ Forms and validation & Task, event and quest forms with required-field checks, d
 \subsection{Central state management --- \texttt{ChangeNotifier}}
 \texttt{AppState} holds every list the UI shows. Mutations go through it and
 end with \texttt{notifyListeners()}, which rebuilds every listening widget.
-\lstinputlisting[language=Dart, caption={AppState: the single store and its
-notification pattern (lib/state/app\_state.dart)}]{snippets/app_state_mutation.dart}
+\begin{lstlisting}[language=Dart, caption={AppState: the single store and its
+notification pattern (lib/state/app\_state.dart)}]
+// Excerpt from lib/state/app_state.dart
+// Central state management: one ChangeNotifier holds every list the UI
+// shows. Mutations flow through it and end in notifyListeners(), which
+// rebuilds every listening widget.
+
+class AppState extends ChangeNotifier {
+  List<Task> _tasks = const [];
+  List<Task> get tasks => List.unmodifiable(_tasks);
+
+  // ---- Tasks ----------------------------------------------------------
+
+  /// Adds a task. The repository returns the stored row (with its real
+  /// database id), which the state keeps from then on.
+  Future<bool> addTask(Task task) => _guard(() async {
+        final saved = await repos.tasks.create(task);
+        _tasks = [..._tasks, saved];
+      });
+
+  Future<bool> setTaskDone(Task task, bool done) {
+    final updated = done
+        ? task.copyWith(
+            status: TaskStatus.completed,
+            completedAt: DateTime.now(),
+            updatedAt: DateTime.now())
+        : task.copyWith(
+            status: TaskStatus.pending,
+            clearCompletedAt: true,
+            updatedAt: DateTime.now());
+    return updateTask(updated);
+  }
+
+  // ---- plumbing -------------------------------------------------------
+
+  /// Runs a mutation, surfacing failures as an error banner instead of
+  /// silently losing the edit.
+  Future<bool> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+      notifyListeners(); // <- every listening widget rebuilds here
+      return true;
+    } catch (e) {
+      errorMessage = 'That change did not save. ${_describe(e)}';
+      notifyListeners();
+      return false;
+    }
+  }
+}
+\end{lstlisting}
 
 \subsection{Repository pattern --- one interface, two backends}
 Screens depend only on the interface; demo mode uses in-memory lists and
 cloud mode uses Supabase.
-\lstinputlisting[language=Dart, caption={Repository interface
-(lib/data/repositories.dart)}]{snippets/repository_interface.dart}
-\lstinputlisting[language=Dart, caption={Supabase implementation: create
+\begin{lstlisting}[language=Dart, caption={Repository interface
+(lib/data/repositories.dart)}]
+// Excerpt from lib/data/repositories.dart
+// The UI and AppState depend only on these interfaces, so the storage
+// backend (in-memory demo or Supabase cloud) can be swapped without
+// touching a single screen.
+
+abstract class TaskRepository {
+  Future<List<Task>> list();
+
+  /// Inserts the task and returns the stored row (with its real id).
+  Future<Task> create(Task task);
+  Future<void> update(Task task);
+  Future<void> delete(String id);
+}
+
+/// The set of repositories the app runs against.
+class RepositoryBundle {
+  const RepositoryBundle({
+    required this.tasks,
+    required this.events,
+    required this.quests,
+    required this.timeLogs,
+  });
+
+  final TaskRepository tasks;
+  final EventRepository events;
+  final QuestRepository quests;
+  final TimeLogRepository timeLogs;
+}
+\end{lstlisting}
+\begin{lstlisting}[language=Dart, caption={Supabase implementation: create
 returns the stored row so the app uses the database-generated id
-(lib/data/supabase\_repositories.dart)}]{snippets/supabase_create.dart}
+(lib/data/supabase\_repositories.dart)}]
+// Excerpt from lib/data/supabase_repositories.dart
+// The Supabase implementation of TaskRepository. Insert with .select()
+// returns the stored row, so the app keeps the database-generated UUID
+// rather than a local placeholder id.
+
+class SupabaseTaskRepository implements TaskRepository {
+  SupabaseTaskRepository(this._client);
+  final SupabaseClient _client;
+
+  static Task fromRow(Map<String, dynamic> r) {
+    return Task(
+      id: r['id'] as String,
+      title: r['title'] as String,
+      description: (r['description'] ?? '') as String,
+      deadline: DateTime.parse(r['deadline_at'] as String).toLocal(),
+      priority:
+          TaskPriority.values.firstWhere((p) => p.name == r['priority']),
+      status: TaskStatus.values.firstWhere((s) => s.name == r['status']),
+      completedAt: _ts(r['completed_at']),
+    );
+  }
+
+  Map<String, dynamic> _toRow(Task t) => {
+        'user_id': _client.auth.currentUser?.id, // RLS scope
+        'title': t.title,
+        'deadline_at': t.deadline.toUtc().toIso8601String(),
+        'priority': t.priority.name,
+        'status': t.status.name,
+        'completed_at': t.completedAt?.toUtc().toIso8601String(),
+      };
+
+  @override
+  Future<Task> create(Task task) async {
+    final rows = await _client.from('tasks').insert(_toRow(task)).select();
+    return fromRow(rows.first); // stored row with the real id
+  }
+
+  @override
+  Future<void> update(Task task) async {
+    await _client.from('tasks').update(_toRow(task)).eq('id', task.id);
+  }
+}
+\end{lstlisting}
 
 \subsection{Responsive layout}
-\lstinputlisting[language=Dart, caption={Responsive shell: sidebar on wide
+\begin{lstlisting}[language=Dart, caption={Responsive shell: sidebar on wide
 screens, bottom navigation bar on narrow ones
-(lib/widgets/app\_shell.dart)}]{snippets/responsive_shell.dart}
-\lstinputlisting[language=Dart, caption={Responsive calendar: one or two
-columns depending on measured width (lib/screens/calendar\_screen.dart)}]{snippets/responsive_calendar.dart}
+(lib/widgets/app\_shell.dart)}]
+// Excerpt from lib/widgets/app_shell.dart
+// Responsive shell: MediaQuery decides between a desktop sidebar and a
+// mobile bottom navigation bar. The same child screen renders in both.
+
+class AppShell extends StatelessWidget {
+  static const double wideBreakpoint = 860;
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= wideBreakpoint;
+
+    if (wide) {
+      return Scaffold(
+        body: Row(
+          children: [
+            _Sidebar(index: _index, auth: auth), // 248 px sidebar
+            Expanded(child: child),              // the active screen
+          ],
+        ),
+      );
+    }
+    return Scaffold(
+      body: SafeArea(child: child),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (i) => context.go(_destinations[i].path),
+        destinations: [
+          for (final d in _destinations)
+            NavigationDestination(
+              icon: Icon(d.icon),
+              selectedIcon: Icon(d.selectedIcon),
+              label: d.label,
+            ),
+        ],
+      ),
+    );
+  }
+}
+\end{lstlisting}
+\begin{lstlisting}[language=Dart, caption={Responsive calendar: one or two
+columns depending on measured width (lib/screens/calendar\_screen.dart)}]
+// Excerpt from lib/screens/calendar_screen.dart
+// Responsive calendar: LayoutBuilder measures the real available width and
+// switches between a side-by-side layout and a stacked one.
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: LayoutBuilder(
+      builder: (context, box) {
+        final twoColumns = box.maxWidth >= 760;
+        final pad = box.maxWidth >= 640 ? 40.0 : 20.0;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(pad, pad >= 40 ? 40 : 24, pad, 96),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: Column(
+              children: [
+                if (twoColumns)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(width: 480, child: calendar),
+                      const SizedBox(width: 40),
+                      Expanded(child: agenda),
+                    ],
+                  )
+                else ...[
+                  calendar,
+                  const SizedBox(height: 28),
+                  agenda,
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+\end{lstlisting}
 
 \subsection{Navigation with go\_router}
-\lstinputlisting[language=Dart, caption={Route table with shell route and
-nested quest detail route (lib/router.dart)}]{snippets/router.dart}
+\begin{lstlisting}[language=Dart, caption={Route table with shell route and
+nested quest detail route (lib/router.dart)}]
+// Excerpt from lib/router.dart
+// Navigation with go_router: a ShellRoute wraps every page in the shared
+// app shell (sidebar / bottom bar), with a nested route for quest details
+// and query parameters driving the add-item flows.
+
+GoRouter buildRouter({bool cloudMode = false, AuthService? auth}) {
+  return GoRouter(
+    routes: [
+      ShellRoute(
+        builder: (context, state, child) => AppShell(
+          auth: auth,
+          location: state.uri.path,
+          child: child,
+        ),
+        routes: [
+          GoRoute(
+            path: '/',
+            pageBuilder: (context, state) => page(state, const HomeScreen()),
+          ),
+          GoRoute(
+            path: '/calendar',
+            pageBuilder: (context, state) => page(
+              state,
+              CalendarScreen(
+                filter: state.uri.queryParameters['filter'],
+                add: state.uri.queryParameters['add'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/quests',
+            pageBuilder: (context, state) => page(
+              state,
+              QuestsScreen(openAdd: state.uri.queryParameters['add'] == '1'),
+            ),
+            routes: [
+              GoRoute(
+                path: ':id', // nested: /quests/<id>
+                pageBuilder: (context, state) => page(
+                  state,
+                  QuestDetailScreen(questId: state.pathParameters['id']!),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/timer',
+            pageBuilder: (context, state) => page(state, const TimerScreen()),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+\end{lstlisting}
 
 \subsection{Animations}
-\lstinputlisting[language=Dart, caption={Fade-and-slide page transition
-(lib/router.dart)}]{snippets/animation_page.dart}
-\lstinputlisting[language=Dart, caption={AnimatedContainer recolours the
+\begin{lstlisting}[language=Dart, caption={Fade-and-slide page transition
+(lib/router.dart)}]
+// Excerpt from lib/router.dart
+// Every navigation animates: the new page fades in while drifting up
+// slightly. CustomTransitionPage is go_router's hook into Flutter's page
+// transition system.
+
+Page<void> page(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionDuration: const Duration(milliseconds: 250),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curved =
+            CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.02),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+\end{lstlisting}
+\begin{lstlisting}[language=Dart, caption={AnimatedContainer recolours the
 stopwatch face by session state; AnimatedSwitcher cross-fades the status
-label (lib/screens/timer\_screen.dart)}]{snippets/animation_timer.dart}
+label (lib/screens/timer\_screen.dart)}]
+// Excerpt from lib/screens/timer_screen.dart
+// The stopwatch face recolours itself with AnimatedContainer as the session
+// state changes (neutral when idle, green tint while running, amber tint
+// while paused), and AnimatedSwitcher cross-fades the status label.
+
+// The stopwatch face. The surface animates between a calm neutral when
+// idle, a green tint while running and an amber tint while paused.
+AnimatedContainer(
+  duration: const Duration(milliseconds: 350),
+  curve: Curves.easeOut,
+  decoration: BoxDecoration(
+    color: !data.timerRunning
+        ? QfColors.pith
+        : data.timerPaused
+            ? Color.lerp(QfColors.pith, QfColors.gamboge, 0.12)
+            : Color.lerp(QfColors.pith, QfColors.moss, 0.10),
+    borderRadius: BorderRadius.circular(10),
+  ),
+  child: Column(
+    children: [
+      Text(formatClock(elapsed), style: QfTheme.display(56, spacing: 2)),
+      // Cross-fades between Ready / Running / Paused.
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: Text(
+          statusLabel,
+          key: ValueKey<String>(statusLabel),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      ),
+      // ...
+    ],
+  ),
+);
+
+// The calendar's day cells use the same idea: selecting a day glides
+// instead of snapping.
+AnimatedContainer(
+  duration: const Duration(milliseconds: 180),
+  curve: Curves.easeOut,
+  decoration: BoxDecoration(
+    color: isSelected ? QfColors.bistre : Colors.transparent,
+    borderRadius: BorderRadius.circular(4),
+  ),
+);
+\end{lstlisting}
 
 \subsection{Forms and validation}
-\lstinputlisting[language=Dart, caption={Task form validation: required
-title and deadline (lib/widgets/forms/task\_form.dart)}]{snippets/form_validation.dart}
-\lstinputlisting[language=Dart, caption={Quest day validation: future days
+\begin{lstlisting}[language=Dart, caption={Task form validation: required
+title and deadline (lib/widgets/forms/task\_form.dart)}]
+// Excerpt from lib/widgets/forms/task_form.dart and form_widgets.dart
+// Every create/edit flow validates before saving. Required fields use a
+// shared validator; the deadline is checked on submit.
+
+TextFormField(
+  controller: _title,
+  autofocus: true,
+  decoration: const InputDecoration(labelText: 'Title *'),
+  validator: (v) => requiredText(v, 'Title'),
+),
+DateTimeField(
+  label: 'Deadline *',
+  value: _deadline,
+  hint: 'Pick a date and time',
+  errorText: _autoValidate && _deadline == null
+      ? 'A deadline is required.'
+      : null,
+  onChanged: (d) => setState(() => _deadline = d),
+),
+
+// Shared validator used by every form.
+String? requiredText(String? v, String label) =>
+    (v == null || v.trim().isEmpty) ? '$label is required.' : null;
+
+// On submit the form validates itself and reports the first problems:
+void _submit() {
+  setState(() => _autoValidate = true);
+  if (!Form.of(context).validate()) return; // errors render under fields
+  // ... build the Task and hand it to AppState
+}
+\end{lstlisting}
+\begin{lstlisting}[language=Dart, caption={Quest day validation: future days
 blocked, upper limit enforced, nothing silently capped
-(lib/state/app\_state.dart)}]{snippets/quest_validation.dart}
+(lib/state/app\_state.dart)}]
+// Excerpt from lib/state/app_state.dart
+// Validation for one quest day, implementing the specification's rules:
+// future days cannot be marked, values must stay within the configured
+// range, and nothing is ever silently capped.
+
+static String? validateRecord(
+    Quest quest, DateTime date, double? value, DateTime now) {
+  if (!quest.isEligible(date)) {
+    return 'That date is outside this quest.';
+  }
+  if (dateOnly(date).isAfter(dateOnly(now))) {
+    return "Future days can't be marked before their day.";
+  }
+  if (value == null) return null; // clearing a day is always allowed
+  if (value < 0) return 'The value cannot be negative.';
+  if (quest.isNumeric) {
+    final limit = quest.upperLimit;
+    if (limit != null && value > limit) {
+      return 'Above the upper limit of ${_fmt(limit)} ${quest.unit}. '
+          'Change the limit if you really did more.';
+    }
+  } else if (value != 0 && value != 1) {
+    return 'Binary quests accept only done or not done.';
+  }
+  return null;
+}
+\end{lstlisting}
 
 \subsection{Custom theme and reusable widgets}
-\lstinputlisting[language=Dart, caption={The ``Lichen \& Madder'' palette:
+\begin{lstlisting}[language=Dart, caption={The ``Lichen \& Madder'' palette:
 semantic item colours and the heatmap colour function
-(lib/theme/palette.dart)}]{snippets/palette.dart}
+(lib/theme/palette.dart)}]
+// Excerpt from lib/theme/palette.dart
+// The application theme is built from a custom palette ("Lichen & Madder",
+// named after natural dye pigments). Item kinds own semantic colours, and
+// the heatmap colour function encodes the specification's rules.
+
+abstract final class QfColors {
+  // Surfaces and ink
+  static const lichen = Color(0xFFD9DECB); // app background
+  static const pith = Color(0xFFECEFE0); // raised surfaces
+  static const bistre = Color(0xFF2A2A1F); // ink + sidebar
+
+  // Item kinds
+  static const madder = Color(0xFFB0444A); // tasks
+  static const woad = Color(0xFF3E6275); // events
+  static const moss = Color(0xFF55782F); // quests, "target reached"
+
+  static const gamboge = Color(0xFFDDA520); // accent (time logs, today ring)
+
+  // Quest heat states (spec section 4)
+  static const ash = Color(0xFFBEC0B0); // zero progress
+  static const partialLight = Color(0xFFD3DDB0);
+  static const partialDeep = Color(0xFF8FAE5C);
+  static const mulberry = Color(0xFF6E3B66); // above target
+
+  /// Colour for one quest day. [ratio] is value / target, used only for
+  /// partial progress.
+  static Color heat(DayState state, {double ratio = 0}) {
+    switch (state) {
+      case DayState.none:
+        return ash;
+      case DayState.partial:
+        return Color.lerp(partialLight, partialDeep, ratio.clamp(0.0, 1.0))!;
+      case DayState.target:
+        return moss;
+      case DayState.over:
+        return mulberry;
+      case DayState.future:
+      case DayState.outside:
+        return Colors.transparent;
+    }
+  }
+}
+\end{lstlisting}
 
 \subsection{Database security --- Row Level Security}
-\lstinputlisting[language=SQL, caption={Row Level Security on the time\_logs
+\begin{lstlisting}[language=SQL, caption={Row Level Security on the time\_logs
 table: every table in the project carries the same four policies
-(supabase/migration\_002\_time\_logs.sql)}]{snippets/rls.sql}
+(supabase/migration\_002\_time\_logs.sql)}]
+-- Excerpt from supabase/migration_002_time_logs.sql
+-- Row Level Security on the time_logs table. Every user-owned table in the
+-- project carries the same four policies: each account can only see and
+-- change its own rows, enforced by the database itself.
+
+create table if not exists public.time_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  title text not null,
+  started_at timestamptz not null,
+  ended_at timestamptz not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint time_logs_interval check (ended_at > started_at)
+);
+
+alter table public.time_logs enable row level security;
+
+create policy "time_logs_select_own" on public.time_logs
+  for select to authenticated
+  using (auth.uid() = user_id);
+
+create policy "time_logs_insert_own" on public.time_logs
+  for insert to authenticated
+  with check (auth.uid() = user_id);
+
+create policy "time_logs_update_own" on public.time_logs
+  for update to authenticated
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy "time_logs_delete_own" on public.time_logs
+  for delete to authenticated
+  using (auth.uid() = user_id);
+\end{lstlisting}
 
 \subsection{Testing}
-\lstinputlisting[language=Dart, caption={One of 81 automated tests: the
+\begin{lstlisting}[language=Dart, caption={One of 81 automated tests: the
 pause/resume accumulation rules of the focus timer
-(test/phase5\_test.dart)}]{snippets/test_example.dart}
+(test/phase5\_test.dart)}]
+// Excerpt from test/phase5_test.dart
+// One of 81 automated tests: the focus timer's pause/resume accumulation.
+// The clock is injected, so the test is fully deterministic.
+
+test('start, pause and resume accumulate only running time', () {
+  final state = AppState.demo(now: _now);
+  expect(state.timerRunning, isFalse);
+
+  state.startTimer(at: _now);
+  expect(state.timerRunning, isTrue);
+  expect(state.timerElapsed(at: _now.add(const Duration(minutes: 10))),
+      const Duration(minutes: 10));
+
+  state.pauseTimer(at: _now.add(const Duration(minutes: 12)));
+  expect(state.timerPaused, isTrue);
+  // Frozen while paused, even hours later.
+  expect(state.timerElapsed(at: _now.add(const Duration(hours: 2))),
+      const Duration(minutes: 12));
+
+  state.resumeTimer(at: _now.add(const Duration(minutes: 30)));
+  expect(state.timerPaused, isFalse);
+  expect(state.timerElapsed(at: _now.add(const Duration(minutes: 40))),
+      const Duration(minutes: 22));
+});
+
+test('ending a paused session ends the log at the pause moment', () async {
+  final state = AppState.demo(now: _now);
+  await state.load();
+
+  state.startTimer(at: at(0, 10));
+  state.pauseTimer(at: at(0, 10, 25));
+  // The user comes back much later and ends it while still paused.
+  await state.endTimer('Broken into chunks', at: at(0, 12));
+
+  final saved = state.timeLogs.last;
+  expect(saved.startedAt, at(0, 10));
+  expect(saved.endedAt, at(0, 10, 25));
+  expect(saved.duration, const Duration(minutes: 25));
+});
+\end{lstlisting}
 
 % ============================================================================
 \section{Deployment Details}
@@ -409,7 +912,61 @@ complete test suite, (3) builds the release web bundle with the correct
 base path for the repository URL, and (4) publishes \texttt{build/web} to
 GitHub Pages. The workflow can also be triggered manually.
 
-\lstinputlisting[language=YAML, caption={.github/workflows/deploy.yml}]{snippets/deploy.yml}
+\begin{lstlisting}[language=YAML, caption={.github/workflows/deploy.yml}]
+# Excerpt from .github/workflows/deploy.yml
+# Continuous deployment: every push to main runs the test suite, builds the
+# release web bundle with the correct base path, and publishes it to
+# GitHub Pages.
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Build release web bundle
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+\end{lstlisting}
 
 \subsection{Cloud backend}
 \begin{itemize}
