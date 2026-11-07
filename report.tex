@@ -1,0 +1,597 @@
+% ============================================================================
+%  QuestFlow — Flutter Coursework Documentation Report
+%
+%  HOW TO USE THIS FILE
+%  1. Upload report.tex to https://www.overleaf.com (New Project → Blank,
+%     or upload this file). Compile with pdfLaTeX (default).
+%  2. Take the screenshots listed in Section 7 and upload them to a folder
+%     named "figures" in the same Overleaf project. The \includegraphics
+%     lines are already written — just uncomment them once the images are
+%     uploaded (or keep them commented and add images one by one).
+%  3. Fill in your name, roll number and section on the title page.
+% ============================================================================
+
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[margin=2.4cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{caption}
+\usepackage[hidelinks]{hyperref}
+
+% ---- colours used by code listings ----------------------------------------
+\definecolor{codebg}{RGB}{248,247,242}
+\definecolor{codekw}{RGB}{90,42,42}
+\definecolor{codestr}{RGB}{47,105,60}
+\definecolor{codecomment}{RGB}{110,110,100}
+\definecolor{rulecol}{RGB}{200,200,190}
+
+% ---- Dart language definition for listings ---------------------------------
+\lstdefinelanguage{Dart}{
+  keywords=[1]{abstract,as,assert,async,await,break,case,catch,class,const,
+    continue,default,do,else,enum,extends,extension,factory,false,final,
+    finally,for,get,if,implements,import,in,is,late,library,mixin,new,null,
+    on,operator,part,required,rethrow,return,set,static,super,switch,this,
+    throw,true,try,typedef,var,void,while,with,yield},
+  keywords=[2]{int,double,bool,String,List,Map,DateTime,Duration,Future,void},
+  sensitive=true,
+  comment=[l]{//},
+  morestring=[b]',
+  morestring=[b]",
+}
+\lstdefinelanguage{YAML}{
+  keywords=[1]{name,on,push,branches,jobs,steps,uses,with,run,needs,permissions},
+  sensitive=true,
+  comment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]",
+}
+\lstdefinelanguage{SQL}{
+  keywords=[1]{create,table,alter,policy,enable,row,level,security,select,
+    insert,update,delete,using,check,not,null,default,references,primary,key,
+    for,to,authenticated,on,if,exists,constraint,trigger,before,each,row,
+    function,execute,uuid,text,timestamptz},
+  sensitive=false,
+  comment=[l]{--},
+  morestring=[b]',
+}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekw}\bfseries,
+  keywordstyle=[2]\color{blue!60!black},
+  commentstyle=\color{codecomment}\itshape,
+  stringstyle=\color{codestr},
+  frame=single,
+  rulecolor=\color{rulecol},
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  xleftmargin=1em,
+  framexleftmargin=0.6em,
+}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{itemsep=2pt,topsep=4pt}
+
+\begin{document}
+
+% ============================================================================
+% TITLE PAGE
+% ============================================================================
+\begin{titlepage}
+  \centering
+  \vspace*{2cm}
+  {\Large \textbf{[University / College Name]}\\[4pt]
+  \large [Department Name]\\[1cm]}
+  \rule{\linewidth}{0.6pt}\\[0.4cm]
+  {\huge \textbf{QuestFlow}\\[0.4cm]
+  \Large A Responsive Flutter Web Application for\\ Tasks, Events and Continuous Quests\\[0.2cm]}
+  \rule{\linewidth}{0.6pt}\\[1.2cm]
+
+  {\large \textbf{Flutter Application Development — Single Credit Coursework}\\[2pt]
+  Documentation Report\\[1.5cm]}
+
+  % TODO: fill in your details
+  \begin{tabular}{rl}
+    \textbf{Submitted by} & [Your Name] \\[6pt]
+    \textbf{Roll Number} & [Your Roll Number] \\[6pt]
+    \textbf{Section}     & [Your Section] \\[6pt]
+    \textbf{Date}        & November 2026 \\
+  \end{tabular}
+
+  \vfill
+  {\large Live deployment: \url{https://sahithi-101.github.io/questflow/}}
+  \vspace{1cm}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================================
+\section{Application Name and Introduction}
+% ============================================================================
+
+\textbf{QuestFlow} is a fully functional, responsive web application built
+with Flutter for managing three kinds of personal activity:
+
+\begin{itemize}
+  \item \textbf{Tasks} — work that must be completed before a deadline
+        (pending, completed, or automatically derived overdue states).
+  \item \textbf{Events} — occurrences at a specific time, with optional end
+        time, location and reminder offsets.
+  \item \textbf{Quests} — continuous daily habits or measurable goals
+        tracked on a heatmap, with streaks and completion statistics.
+\end{itemize}
+
+The application presents exactly three primary destinations --- Home,
+Tasks \& Events, and Quests --- plus a fourth page, a \textbf{Focus Timer},
+which records named time logs of work sessions. Every item supports full
+create, read, update and delete (CRUD) operations. User accounts are managed
+by Supabase authentication, and all records are stored in a PostgreSQL
+database protected by Row Level Security, so each account sees only its own
+data. The compiled application is deployed on GitHub Pages and can be used
+from any browser, on desktop or mobile.
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.85\textwidth]{figures/home-desktop.png}
+  \caption{QuestFlow home dashboard (desktop width).}
+  \label{fig:home}
+\end{figure}
+
+% ============================================================================
+\section{Purpose and Objectives}
+% ============================================================================
+
+\subsection{Purpose}
+QuestFlow was designed as a personal productivity application that combines
+a compact daily dashboard, a calendar for time-bound items, and a
+heatmap-based habit tracker. The purpose of the project is twofold:
+
+\begin{enumerate}
+  \item To build a genuinely useful day-to-day productivity tool, and
+  \item To demonstrate, in one coherent product, the Flutter concepts
+        covered during the laboratory sessions --- widgets, responsive
+        design, navigation, animations, state management, theming, custom
+        widgets, and forms with validation.
+\end{enumerate}
+
+\subsection{Objectives}
+\begin{itemize}
+  \item Provide exactly three primary destinations (Home, Tasks \& Events,
+        Quests) with clear navigation, plus a focus timer.
+  \item Implement complete CRUD operations for tasks, events, quests and
+        time logs, with validation on every form.
+  \item Render quest history as a heatmap implementing documented colour
+        rules (grey / green gradient / full green / purple) and compute
+        streaks and completion rates from it.
+  \item Persist data in the cloud with per-user isolation enforced by
+        Row Level Security in the database itself.
+  \item Keep every screen responsive from mobile widths ($\approx$390\,px)
+        to desktop widths ($\geq$1280\,px).
+  \item Verify correctness with an automated test suite (81 tests).
+  \item Deploy the release build continuously to GitHub Pages.
+\end{itemize}
+
+% ============================================================================
+\section{Tools and Technologies Used}
+% ============================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Tool / Technology} & \textbf{Role in the project} \\
+\midrule
+Flutter 3.47 (stable) & UI toolkit; one codebase compiled for web, Android and Linux desktop \\
+Dart 3 & Programming language for all application and test code \\
+go\_router (\texttt{\^{}14}) & Declarative navigation: shell route, nested routes, query parameters \\
+supabase\_flutter (\texttt{\^{}2.8}) & Cloud backend client: authentication and PostgreSQL CRUD \\
+Supabase Auth & Email/password sign-up, sign-in, password reset, persistent sessions \\
+PostgreSQL + Row Level Security & Cloud storage; per-user data isolation enforced in the database \\
+flutter\_test & Automated unit and widget testing (81 tests) \\
+flutter\_launcher\_icons & Generation of launcher icons for Android, iOS, web and macOS \\
+Git + GitHub & Version control and source hosting \\
+GitHub Actions + GitHub Pages & Continuous deployment: tests, release build and hosting \\
+VS Code / Android Studio & Development environment \\
+Chrome and Android device & Testing on different screen sizes and platforms \\
+\bottomrule
+\end{tabularx}
+\caption{Tools and technologies.}
+\end{table}
+
+\subsection{Architecture}
+The application follows a layered architecture so that the UI never talks
+to the storage backend directly:
+
+\begin{center}
+\begin{tabular}{c l l}
+\toprule
+Layer & Responsibility & Key files \\
+\midrule
+UI & Screens and reusable widgets & \texttt{lib/screens/}, \texttt{lib/widgets/} \\
+State & Single \texttt{ChangeNotifier} store & \texttt{lib/state/app\_state.dart} \\
+Data & Repository interfaces + 2 implementations & \texttt{lib/data/} \\
+Cloud & PostgreSQL, Auth, RLS & Supabase project \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The in-memory implementation backs demo mode; the Supabase implementation
+backs cloud mode. Both satisfy the same interfaces, so the whole storage
+backend is swappable without touching a single screen.
+
+% ============================================================================
+\section{Features and Functionalities Implemented}
+% ============================================================================
+
+\subsection{Home dashboard}
+\begin{itemize}
+  \item Tasks summary bar: pending count, due today, overdue count.
+  \item Events summary bar: events of today and tomorrow, chronological.
+  \item Quests bar: completed today / active total with completion percentage.
+  \item Every bar navigates to its screen; quick-access button to add items.
+\end{itemize}
+
+\subsection{Tasks \& Events (calendar page)}
+\begin{itemize}
+  \item Month calendar (Monday-first) with shape-and-colour markers:
+        squares for tasks (filled = pending, outlined = done) and circles
+        for events, with a legend.
+  \item Month navigation, ``Today'' button, day selection.
+  \item Agenda for the selected day, combining tasks, events and time logs
+        in one chronological list.
+  \item Separate task and event forms with validation; a single ``+'' flow
+        asks which one to create.
+  \item Detail dialogs for both kinds with edit and delete-with-confirmation.
+  \item Tasks can be marked done and reopened; overdue is derived
+        automatically.
+\end{itemize}
+
+\subsection{Quests}
+\begin{itemize}
+  \item Quest list with per-quest progress, current streak and completion rate.
+  \item Quest form: binary or numeric tracking mode, unit, daily target,
+        upper limit, start/end dates with month/year presets; the end-date
+        picker cannot choose a date before the start date.
+  \item Full heatmap screen: month blocks, colour rules --- grey for zero,
+        green gradient for partial progress, full green at target, purple
+        for over-target days; future days are visually distinct and never
+        shown as failures.
+  \item Day dialog to record or edit any past day; future days are blocked;
+        values above the upper limit are rejected with a message, never
+        silently capped.
+  \item Statistics: current streak, longest streak, completion rate,
+        successful days, elapsed days, overload days.
+  \item Archive as a safer alternative to deletion.
+\end{itemize}
+
+\subsection{Focus Timer (fourth page)}
+\begin{itemize}
+  \item Stopwatch with Start, Pause/Resume, and End \& log; the session
+        keeps running while the user visits other pages.
+  \item On ending, the app asks for a name; empty names cannot be saved and
+        the session can be discarded.
+  \item Paused time is excluded from the log: ending while paused closes
+        the log at the pause moment.
+  \item Today's logs are listed with name, start--end time, duration and a
+        daily total; each log also appears on the calendar agenda under its
+        day and can be deleted from there.
+  \item Logs are retained for 30 days from their calendar day.
+\end{itemize}
+
+\subsection{Authentication and cloud storage}
+\begin{itemize}
+  \item Email/password sign-up, sign-in, sign-out and password reset.
+  \item Session restoration: returning users stay signed in.
+  \item Row Level Security policies on \emph{every} table guarantee that
+        one account cannot read or modify another account's records.
+  \item Loading, error, empty and success states for all cloud operations.
+\end{itemize}
+
+\subsection{Data retention}
+Finished items are cleaned up automatically by a sweep that runs on every
+load and hourly: completed tasks one week after completion, events one week
+after they end, quests one week after their end date (with their daily
+records), and time logs 30 days after their calendar day.
+
+\subsection{Coursework concept mapping}
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Required concept} & \textbf{Where it is implemented} \\
+\midrule
+Different widgets & \texttt{Container}, \texttt{Row}, \texttt{Column},
+\texttt{Stack} (live badge over the stopwatch face), \texttt{ListView},
+\texttt{GridView.count} (calendar and heatmap grids), styled cards,
+\texttt{FilledButton}/\texttt{OutlinedButton}/icon buttons,
+\texttt{AlertDialog}, \texttt{TextField}, chips, \texttt{FloatingActionButton} \\
+\midrule
+Responsive UI & \texttt{MediaQuery.sizeOf} drives the sidebar$\leftrightarrow$bottom-bar switch at 860\,px and per-screen paddings; \texttt{LayoutBuilder} switches the calendar between one and two columns at 760\,px; \texttt{MediaQuery.disableAnimationsOf} respects reduced-motion settings \\
+\midrule
+Navigation & \texttt{go\_router} with a \texttt{ShellRoute} (shared shell), five top-level routes, a nested quest-detail route, and query-parameter-driven flows \\
+\midrule
+Animations & Fade+slide page transitions (\texttt{CustomTransitionPage}), \texttt{AnimatedContainer} on the stopwatch face and calendar day selection, \texttt{AnimatedSwitcher} on the timer status, plus implicit dialog and snackbar transitions \\
+\midrule
+State management & \texttt{StatefulWidget} throughout the UI; a single \texttt{ChangeNotifier} (\texttt{AppState}) exposed through a custom \texttt{InheritedWidget} (\texttt{AppScope}) --- the same provider pattern the \texttt{provider} package formalises \\
+\midrule
+Themes \& custom widgets & Custom ``Lichen \& Madder'' palette and \texttt{ThemeData}; reusable custom widgets: summary bars, agenda rows, status views, form dialog scaffold, confirm-delete dialog, heatmap cells \\
+\midrule
+Forms and validation & Task, event and quest forms with required-field checks, date rules (end date cannot precede start date), numeric range validation against the quest's upper limit, and non-empty log names \\
+\bottomrule
+\end{tabularx}
+\caption{Mapping of the required coursework concepts to the implementation.}
+\label{tab:concepts}
+\end{table}
+
+% ============================================================================
+\section{Important Code Snippets}
+% ============================================================================
+
+\subsection{Central state management --- \texttt{ChangeNotifier}}
+\texttt{AppState} holds every list the UI shows. Mutations go through it and
+end with \texttt{notifyListeners()}, which rebuilds every listening widget.
+\lstinputlisting[language=Dart, caption={AppState: the single store and its
+notification pattern (lib/state/app\_state.dart)}]{snippets/app_state_mutation.dart}
+
+\subsection{Repository pattern --- one interface, two backends}
+Screens depend only on the interface; demo mode uses in-memory lists and
+cloud mode uses Supabase.
+\lstinputlisting[language=Dart, caption={Repository interface
+(lib/data/repositories.dart)}]{snippets/repository_interface.dart}
+\lstinputlisting[language=Dart, caption={Supabase implementation: create
+returns the stored row so the app uses the database-generated id
+(lib/data/supabase\_repositories.dart)}]{snippets/supabase_create.dart}
+
+\subsection{Responsive layout}
+\lstinputlisting[language=Dart, caption={Responsive shell: sidebar on wide
+screens, bottom navigation bar on narrow ones
+(lib/widgets/app\_shell.dart)}]{snippets/responsive_shell.dart}
+\lstinputlisting[language=Dart, caption={Responsive calendar: one or two
+columns depending on measured width (lib/screens/calendar\_screen.dart)}]{snippets/responsive_calendar.dart}
+
+\subsection{Navigation with go\_router}
+\lstinputlisting[language=Dart, caption={Route table with shell route and
+nested quest detail route (lib/router.dart)}]{snippets/router.dart}
+
+\subsection{Animations}
+\lstinputlisting[language=Dart, caption={Fade-and-slide page transition
+(lib/router.dart)}]{snippets/animation_page.dart}
+\lstinputlisting[language=Dart, caption={AnimatedContainer recolours the
+stopwatch face by session state; AnimatedSwitcher cross-fades the status
+label (lib/screens/timer\_screen.dart)}]{snippets/animation_timer.dart}
+
+\subsection{Forms and validation}
+\lstinputlisting[language=Dart, caption={Task form validation: required
+title and deadline (lib/widgets/forms/task\_form.dart)}]{snippets/form_validation.dart}
+\lstinputlisting[language=Dart, caption={Quest day validation: future days
+blocked, upper limit enforced, nothing silently capped
+(lib/state/app\_state.dart)}]{snippets/quest_validation.dart}
+
+\subsection{Custom theme and reusable widgets}
+\lstinputlisting[language=Dart, caption={The ``Lichen \& Madder'' palette:
+semantic item colours and the heatmap colour function
+(lib/theme/palette.dart)}]{snippets/palette.dart}
+
+\subsection{Database security --- Row Level Security}
+\lstinputlisting[language=SQL, caption={Row Level Security on the time\_logs
+table: every table in the project carries the same four policies
+(supabase/migration\_002\_time\_logs.sql)}]{snippets/rls.sql}
+
+\subsection{Testing}
+\lstinputlisting[language=Dart, caption={One of 81 automated tests: the
+pause/resume accumulation rules of the focus timer
+(test/phase5\_test.dart)}]{snippets/test_example.dart}
+
+% ============================================================================
+\section{Deployment Details}
+% ============================================================================
+
+\subsection{Build and hosting}
+The application is deployed to \textbf{GitHub Pages} at
+\begin{center}
+\url{https://sahithi-101.github.io/questflow/}
+\end{center}
+
+Deployment is fully automatic: every push to the \texttt{main} branch
+triggers a GitHub Actions workflow that (1) installs Flutter, (2) runs the
+complete test suite, (3) builds the release web bundle with the correct
+base path for the repository URL, and (4) publishes \texttt{build/web} to
+GitHub Pages. The workflow can also be triggered manually.
+
+\lstinputlisting[language=YAML, caption={.github/workflows/deploy.yml}]{snippets/deploy.yml}
+
+\subsection{Cloud backend}
+\begin{itemize}
+  \item A Supabase project hosts the PostgreSQL database and email/password
+        authentication.
+  \item The schema (\texttt{supabase/schema.sql} plus two migration files)
+        defines six tables --- profiles, tasks, events, quests,
+        quest\_daily\_records and time\_logs --- with RLS policies,
+        \texttt{updated\_at} triggers, a unique constraint on
+        \texttt{(quest\_id, record\_date)} and check constraints.
+  \item Only the public anon key is embedded in the client; authorisation
+        is enforced by RLS in the database itself.
+  \item The deployed URL is registered in Supabase's allowed redirect URLs
+        so confirmation and password-reset emails work from the live site.
+\end{itemize}
+
+\subsection{Running locally}
+\begin{lstlisting}[language=, basicstyle=\ttfamily\small]
+flutter pub get
+flutter run -d chrome          # web (demo mode without Supabase keys)
+flutter run -d linux           # Linux desktop build
+flutter run -d android         # Android device over USB
+flutter test                   # 81 automated tests
+flutter build web --release    # production bundle
+flutter build apk --release    # Android installer
+\end{lstlisting}
+
+% ============================================================================
+\section{Screenshots of the Application}
+% ============================================================================
+
+% Every figure below expects one PNG in the figures/ folder. Suggested
+% capture sizes: desktop = 1280x800 browser window; mobile = 390x844
+% (Chrome DevTools device toolbar). Uncomment the \includegraphics lines
+% as you add the images.
+
+\subsection{Home dashboard}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{figures/home-desktop.png}
+  \caption{Home dashboard on desktop: the three summary bars with live
+  counts, quick-add button and sidebar navigation.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.32\textwidth]{figures/home-mobile.png}
+  \caption{Home dashboard at mobile width: the sidebar is replaced by a
+  bottom navigation bar and the bars stack vertically.}
+\end{figure}
+
+\subsection{Tasks \& Events}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{figures/calendar-desktop.png}
+  \caption{Calendar with task/event markers and the selected-day agenda
+  (two-column desktop layout).}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.32\textwidth]{figures/calendar-mobile.png}
+  \caption{Calendar at mobile width: single column, bottom navigation.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.55\textwidth]{figures/task-form-validation.png}
+  \caption{Task form with validation errors shown after submitting empty
+  required fields.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.55\textwidth]{figures/event-form.png}
+  \caption{Event form: start/end pickers, location and reminder offsets.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.55\textwidth]{figures/task-detail.png}
+  \caption{Task detail dialog with Edit and Delete actions.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.45\textwidth]{figures/delete-confirm.png}
+  \caption{Delete confirmation dialog.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{figures/agenda-with-log.png}
+  \caption{Agenda showing a focus-timer log (amber) among tasks and events,
+  with its name, start--end time and duration.}
+\end{figure}
+
+\subsection{Quests}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{figures/quest-list.png}
+  \caption{Quest list with per-quest streaks and completion rates.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.55\textwidth]{figures/quest-form.png}
+  \caption{Quest form: tracking mode, unit, target, upper limit and date
+  range with presets.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.9\textwidth]{figures/quest-heatmap.png}
+  \caption{Quest heatmap: grey/partial-green/full-green/purple colour rules
+  with future days visually distinct.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.45\textwidth]{figures/quest-day-dialog.png}
+  \caption{Day dialog recording progress for one quest day.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.55\textwidth]{figures/quest-stats.png}
+  \caption{Quest statistics: current streak, longest streak, completion
+  rate, overload days.}
+\end{figure}
+
+\subsection{Focus Timer}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.5\textwidth]{figures/timer-idle.png}
+  \caption{Timer page in its idle state.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.5\textwidth]{figures/timer-running.png}
+  \caption{Timer running: the face tint animates green and the live badge
+  (Stack layer) is visible.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.4\textwidth]{figures/timer-name-dialog.png}
+  \caption{Ending a session asks for a name; empty names cannot be saved.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.5\textwidth]{figures/timer-logs.png}
+  \caption{Today's logs with durations and the daily total.}
+\end{figure}
+
+\subsection{Authentication and states}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.5\textwidth]{figures/auth-signin.png}
+  \caption{Sign-in screen (cloud mode); sign-up and password reset are
+  reached from here.}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  % \includegraphics[width=0.5\textwidth]{figures/error-state.png}
+  \caption{Error state with retry, shown when the cloud is unreachable.}
+\end{figure}
+
+\section{Conclusion}
+
+QuestFlow demonstrates all of the required Flutter concepts --- diverse
+widgets, responsive layout, navigation, animations, state management,
+theming with custom reusable widgets, and validated forms --- inside one
+working product with real cloud persistence, automated tests and continuous
+deployment, rather than a static UI mock-up.
+
+\end{document}

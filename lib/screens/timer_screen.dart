@@ -143,36 +143,48 @@ class _TimerScreenState extends State<TimerScreen> {
                             : Color.lerp(QfColors.pith, QfColors.moss, 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Column(
+                  child: Stack(
                     children: [
-                      Text(
-                        formatClock(elapsed),
-                        style: QfTheme.display(56, spacing: 2),
-                      ),
-                      const SizedBox(height: 8),
-                      // Cross-fades between Ready / Running / Paused.
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: Text(
-                          statusLabel,
-                          key: ValueKey<String>(statusLabel),
-                          style: const TextStyle(
-                            color: QfColors.bistreSoft,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.2,
+                      Column(
+                        children: [
+                          Text(
+                            formatClock(elapsed),
+                            style: QfTheme.display(56, spacing: 2),
                           ),
+                          const SizedBox(height: 8),
+                          // Cross-fades between Ready / Running / Paused.
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: Text(
+                              statusLabel,
+                              key: ValueKey<String>(statusLabel),
+                              style: const TextStyle(
+                                color: QfColors.bistreSoft,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 28),
+                          _Controls(
+                            running: data.timerRunning,
+                            paused: data.timerPaused,
+                            onStart: () => data.startTimer(),
+                            onPause: () => data.pauseTimer(),
+                            onResume: () => data.resumeTimer(),
+                            onEnd: () => _endSession(data),
+                          ),
+                        ],
+                      ),
+                      // A live badge floats over the face (Stack layering)
+                      // while the session is recording.
+                      if (data.timerRunning && !data.timerPaused)
+                        const Positioned(
+                          top: 14,
+                          right: 14,
+                          child: _LiveBadge(),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      _Controls(
-                        running: data.timerRunning,
-                        paused: data.timerPaused,
-                        onStart: () => data.startTimer(),
-                        onPause: () => data.pauseTimer(),
-                        onResume: () => data.resumeTimer(),
-                        onEnd: () => _endSession(data),
-                      ),
                     ],
                   ),
                 ),
@@ -222,6 +234,35 @@ class _TimerScreenState extends State<TimerScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Small overlay badge shown while the stopwatch is recording (Stack).
+class _LiveBadge extends StatelessWidget {
+  const _LiveBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: QfColors.moss,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.fiber_manual_record, size: 10, color: QfColors.pith),
+          SizedBox(width: 4),
+          Text('LIVE',
+              style: TextStyle(
+                  color: QfColors.pith,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1)),
+        ],
       ),
     );
   }
