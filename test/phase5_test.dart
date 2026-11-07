@@ -221,7 +221,7 @@ void main() {
     testWidgets('start, end, name the log and see it saved', (t) async {
       await _pump(t);
       await t.tap(find.text('Timer'));
-      await t.pump();
+      await t.pumpAndSettle();
 
       expect(find.text('Ready'), findsOneWidget);
       await t.tap(find.text('Start'));
@@ -251,7 +251,7 @@ void main() {
     testWidgets('empty log name cannot be saved', (t) async {
       await _pump(t);
       await t.tap(find.text('Timer'));
-      await t.pump();
+      await t.pumpAndSettle();
       await t.tap(find.text('Start'));
       await t.pump();
       await t.tap(find.text('End & log'));
@@ -265,7 +265,7 @@ void main() {
         (t) async {
       await _pump(t);
       await t.tap(find.text('Timer'));
-      await t.pump();
+      await t.pumpAndSettle();
       expect(find.text('Morning study session'), findsOneWidget);
       expect(find.text('7:30 am – 9:00 am'), findsOneWidget);
       expect(find.text('1h 30m'), findsOneWidget);

@@ -337,13 +337,17 @@ class _DayCell extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(4),
-          child: Container(
+          child: AnimatedContainer(
+            // Animated so selecting a day glides instead of snapping
+            // (coursework: animations concept).
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: isSelected ? QfColors.bistre : Colors.transparent,
               borderRadius: BorderRadius.circular(4),
               border: isToday && !isSelected
                   ? Border.all(color: QfColors.gamboge, width: 2)
-                  : null,
+                  : Border.all(color: Colors.transparent, width: 2),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

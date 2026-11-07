@@ -127,12 +127,20 @@ class _TimerScreenState extends State<TimerScreen> {
               children: [
                 Text('Timer', style: Theme.of(context).textTheme.headlineMedium),
                 const SizedBox(height: 28),
-                // The stopwatch face.
-                Container(
+                // The stopwatch face. The surface animates between a calm
+                // neutral when idle, a green tint while running and an
+                // amber tint while paused (AnimatedContainer).
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 350),
+                  curve: Curves.easeOut,
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 44),
                   decoration: BoxDecoration(
-                    color: QfColors.pith,
+                    color: !data.timerRunning
+                        ? QfColors.pith
+                        : data.timerPaused
+                            ? Color.lerp(QfColors.pith, QfColors.gamboge, 0.12)
+                            : Color.lerp(QfColors.pith, QfColors.moss, 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -142,13 +150,18 @@ class _TimerScreenState extends State<TimerScreen> {
                         style: QfTheme.display(56, spacing: 2),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        statusLabel,
-                        style: const TextStyle(
-                          color: QfColors.bistreSoft,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
+                      // Cross-fades between Ready / Running / Paused.
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Text(
+                          statusLabel,
+                          key: ValueKey<String>(statusLabel),
+                          style: const TextStyle(
+                            color: QfColors.bistreSoft,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 28),

@@ -24,8 +24,28 @@ import 'widgets/app_shell.dart';
 /// the burst of onAuthStateChange events that follow email confirmation and
 /// crashes go_router's matcher, so it is deliberately avoided here.
 GoRouter buildRouter({bool cloudMode = false, AuthService? auth}) {
+  /// Fade-and-slide page transition (coursework: animations concept).
+  /// Subtle on purpose — 250 ms, small vertical drift.
   Page<void> page(GoRouterState state, Widget child) =>
-      NoTransitionPage<void>(key: state.pageKey, child: child);
+      CustomTransitionPage<void>(
+        key: state.pageKey,
+        child: child,
+        transitionDuration: const Duration(milliseconds: 250),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved =
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
 
   Widget shellBuilder(BuildContext context, GoRouterState state, Widget child) {
     if (cloudMode && auth != null && !auth.isSignedIn) {
